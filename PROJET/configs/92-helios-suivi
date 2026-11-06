@@ -1,0 +1,8 @@
+# /etc/sudoers.d/92-helios-suivi - delegation equipe suivi (E5)
+# commandes completes, sans joker : aucune option ne peut etre ajoutee (pas de --vacuum-*)
+Cmnd_Alias SUIVI_SVC = /usr/bin/systemctl restart helios-suivi.service, \
+                       /usr/bin/systemctl status helios-suivi.service
+Cmnd_Alias SUIVI_PUB = /usr/bin/systemctl start helios-suivi-publish.service
+Cmnd_Alias SUIVI_LOG = /usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager, \
+                       /usr/bin/journalctl -u helios-suivi-publish.service -n 100 --no-pager
+%suivi ALL=(root) SUIVI_SVC, SUIVI_PUB, SUIVI_LOG
