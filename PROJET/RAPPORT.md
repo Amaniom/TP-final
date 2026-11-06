@@ -2,8 +2,8 @@
 
 Amziane Tarek (MTP). srv-core = 192.168.56.101 (SSH port 2242, compte admin_trake puis `sudo -i`).
 
-**Rendu partiel.** Faute de temps je n'ai fait que : les prérequis, E8.1 (agent Zabbix), E1, E2 et E3 (sans unit).
-E4 à E10 ne sont pas commencés, je le dis clairement dans le tableau. Je n'ai rien mis de faux.
+**Rendu partiel.** Faute de temps je n'ai fait que : les prérequis, E8.1 (agent Zabbix), E1, E2 E3 (sans unit), E5 et E7.
+E4, E6, E8.3-8.5, E9, E10 ne sont pas commencés, je le dis clairement dans le tableau. Je n'ai rien mis de faux.
 
 Tout a été lancé en une fois avec le script `configs/projet-e8-e1-e2.sh` (en root), le 06/11/2026 entre 12:27:19 et 12:29:31 (heure du serveur).
 La sortie complète copiée du terminal est dans `preuves/sortie-projet.txt`. Les captures sont dans `preuves/Captures_PROJET.pdf` (13 captures, 10 à 13 pour E3 : ce sont les vraies sorties du terminal srv-core, mises en image depuis `sortie-projet.txt`, pas des copies d'écran de fenêtre).
@@ -42,9 +42,9 @@ Instantanés : il n'y a pas de `03-fin-TP3` chez moi (j'ai `00-socle-propre`, `0
 | E3.3 | OK | `ls -la www` après publication | seulement `etat.json` et `index.html`, pas de `.etat.json.XXXXXX` qui traîne (mktemp dans www puis `mv`) |
 | E3.4 | **Partiel** | — | marche lancé en helios-suivi, mais pas testé dans une unit (E4 pas fait) |
 | E4 | **Non réalisé** | — | aucune unit créée (helios-suivi.service, publish .service/.timer) |
-| E5 | **Non réalisé** | — | pas de `/etc/sudoers.d/92-helios-suivi` |
+| E5 | OK — `preuves/sortie-e5-e7.txt` | `visudo -c` ; `ls -l /etc/sudoers.d/92-helios-suivi` ; `sudo -l -U lea [...]` ; essai réel en lea | `92-helios-suivi : analyse réussie` ; `-r--r-----. 1 root root` ; lea liste exactement les 5 commandes (restart/status helios-suivi, start publish, journalctl -u ... -n 100 --no-pager x2) ; `restart sshd` rc=1 ; `journalctl --vacuum-time=1s` rc=1 ; même commande + `--vacuum-time=1s` rc=1 ; essai réel : journalctl OK (`-- No entries --`, unit pas encore créée), `restart sshd` → `l'utilisateur lea n'est pas autorisé` rc=1. Pas de NOPASSWD (lea a dû taper son mot de passe) |
 | E6 | **Non réalisé** | — | 8080 pas ouvert (normal, rien n'écoute) |
-| E7 | Partiel (pas re-vérifié en entier) | `sshd -T` au début du script | port 2242 / permitrootlogin no / passwordauthentication no / allowgroups ssh-admins, et helios-watch-auth.timer active. Pas fait : test SSH de lea refusé + ligne de journal, journald persistant |
+| E7 | OK — `preuves/sortie-e5-e7.txt` | `sshd -T` ; `ssh -p 2242 lea@192.168.56.101` depuis le PC ; `journalctl -u sshd \| grep lea` ; timer ; journald | `port 2242`, `permitrootlogin no`, `passwordauthentication no`, `allowgroups ssh-admins` ; lea : `Permission denied (publickey)` rc=255, journal : `12:48:39 ... User lea from 192.168.56.1 not allowed because none of user's groups are listed in AllowGroups` ; `helios-watch-auth.timer` active (dernier passage 12:50:04) ; `Storage=persistent` (50-helios.conf), `/var/log/journal` existe, 2 boots listés ; firewalld active, SELinux Enforcing |
 | E8.1 | OK — cap. 3, 4 | `rpm -q` ; `getent passwd zabbix` ; `systemctl is-active/is-enabled` ; `zabbix_get -k agent.ping` | `zabbix-agent2-7.0.32-release2.el9`, `zabbix-get-7.0.32-release2.el9`, `sysstat-12.5.4-11.el9` ; `zabbix:x:995:994` ; agent `active`/`enabled` ; `Server=127.0.0.1` ; `agent.ping` → `1` |
 | E8.2 | OK — cap. 4 | `systemctl is-active sysstat-collect.timer; is-enabled` | `active` / `enabled` |
 | E8.3–E8.5 | **Non réalisé** | — | pas de `helios-suivi.conf` (il faut le portail E4 et etat.json E3 avant) |
@@ -64,7 +64,7 @@ Pas d'EPEL sur mon srv-core (`/etc/yum.repos.d/` ne contient que les dépôts ro
 - Je n'ai **pas** testé le cas « sans cette entrée » (manque de temps). En théorie stat donnerait Permission non accordée, mais je ne l'ai pas vu.
 - SELinux : `ausearch -m AVC -ts recent` → `<no matches>`.
 
-(c) joker `*` dans la règle sudo journalctl : **pas fait** (E5 non réalisé). Ce que j'ai compris de la fiche : avec `journalctl *`, lea pourrait ajouter `--vacuum-time=1s` et effacer les journaux en root, donc il faut écrire la commande complète sans joker.
+(c) joker `*` dans la règle sudo journalctl : avec `journalctl *`, lea pourrait ajouter n'importe quelle option en root, par ex. `--vacuum-time=1s` / `--vacuum-size=1` qui **supprime les journaux archivés** (on efface les traces), ou `--rotate`, ou lire tous les journaux du système. Ma règle donne la commande complète `journalctl -u <unit> -n 100 --no-pager` : quand une règle sudo a des arguments, sudo exige exactement ceux-là. Vérifié : `sudo -l -U lea /usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager --vacuum-time=1s` → rien, rc=1.
 
 ## 3. Test de restauration (E9.5)
 
@@ -78,7 +78,7 @@ Non réalisée (le portail n'existe pas encore). sysstat collecte quand même de
 
 - uid de lea = 5105 et pas 5104 (conflit avec sysops du TP3, voir plus haut). Avec plus de temps : en parler au formateur avant de toucher à sysops.
 - E3.4 pas testé sous systemd (pas d'unit). Le code 1 (ligne invalide) existe dans le script mais je ne l'ai pas provoqué.
-- E4, E5, E6, E8.3-8.5, E9, E10 pas faits, E7 seulement en partie. Je n'ai pas réussi à gérer le temps sur les deux jours.
+- E4, E6, E8.3-8.5, E9, E10 pas faits, E7 seulement en partie. Je n'ai pas réussi à gérer le temps sur les deux jours.
 - L'ACL par défaut donne aussi `rwx` à helios-suivi sur les nouveaux fichiers (`#effective:rw-` à cause du masque), ça suffit pour E2.4.
 - Pas de reboot fait après les modifs (tout est fait avec des commandes persistantes : useradd, chage, setfacl, systemctl enable, mais pas re-vérifié après un boot).
 - Avec une journée de plus : E4 (units + `systemd-analyze security`), E5, E6 (`--zone=internal --add-port=8080/tcp` runtime + permanent), puis E8.3 et E9.
@@ -90,3 +90,10 @@ Non réalisée (le portail n'existe pas encore). sysstat collecte quand même de
 - Atomicité : `mktemp` dans www (même système de fichiers) puis `mv` = rename, un lecteur voit l'ancien ou le nouveau fichier, jamais la moitié. `chmod 0660` avant le mv sinon mktemp crée en 0600 et le masque ACL tombe à `---` (lea ne pourrait plus lire).
 - Problème rencontré : `/var/lib/helios` est en 750 helios:helios (TP1), helios-suivi ne pouvait pas lire telemetry.csv. J'ai **ajouté** une ACL `u:helios-suivi:--x` sur `/var/lib/helios` (rien retiré, le fichier lui-même est déjà 644). `getfacl` dans `sortie-e3.txt`.
 - zabbix peut faire `stat` sur etat.json (`/srv/helios/suivi/www/etat.json 184 2026-11-06 12:41:04`), donc E2.3 est vérifié aussi sur le vrai fichier. Pas d'AVC.
+
+## 7. E5 / E7 — notes (12:48 - 12:51)
+
+- Fichier : `configs/92-helios-suivi` (validé `visudo -cf` avant `install -m 0440 -o root -g root`), script `configs/projet-e5-e7.sh`.
+- `visudo -c` affiche un avertissement sur `90-helios-ops` (Cmnd_Alias DANGEREUX non utilisé) : c'est l'ancien fichier du TP2, je n'y ai pas touché.
+- Les units helios-suivi n'existent pas encore (E4 pas fait), donc l'essai réel a été fait avec journalctl (autorisé, `-- No entries --`) et le refus avec `restart sshd`. Le restart du portail n'a pas pu être testé pour de vrai.
+- Le refus SSH de lea a été fait depuis mon PC Windows (192.168.56.1), pas depuis srv-edge.

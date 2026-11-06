@@ -1,0 +1,114 @@
+===== E5/E7 srv-core - 2026-11-06 12:51:20 =====
+
+################ E5 ################
+
+### visudo -cf /home/admin_trake/92-helios-suivi
+/home/admin_trake/92-helios-suivi : analyse réussie
+[rc=0]
+
+### ls -l /etc/sudoers.d/92-helios-suivi
+-r--r-----. 1 root root 607  6 nov.  12:51 /etc/sudoers.d/92-helios-suivi
+[rc=0]
+
+### visudo -c
+Attention : /etc/sudoers.d/90-helios-ops:10:12: Cmnd_Alias « DANGEREUX » n'est pas utilisé
+/etc/sudoers : analyse réussie
+/etc/sudoers.d/90-helios-ops : analyse réussie
+/etc/sudoers.d/91-nadia-edition : analyse réussie
+/etc/sudoers.d/92-helios-suivi : analyse réussie
+[rc=0]
+
+### sudo -l -U lea
+Entrées Defaults correspondant pour lea sur srv-core :
+    !visiblepw, always_set_home, match_group_by_gid, always_query_group_plugin, env_reset, env_keep="COLORS DISPLAY HOSTNAME HISTSIZE KDEDIR LS_COLORS", env_keep+="MAIL PS1 PS2 QTDIR USERNAME LANG LC_ADDRESS LC_CTYPE", env_keep+="LC_COLLATE LC_IDENTIFICATION LC_MEASUREMENT LC_MESSAGES", env_keep+="LC_MONETARY LC_NAME LC_NUMERIC LC_PAPER LC_TELEPHONE", env_keep+="LC_TIME LC_ALL LANGUAGE LINGUAS _XKB_CHARSET XAUTHORITY", secure_path=/sbin\:/bin\:/usr/sbin\:/usr/bin
+
+L'utilisateur lea peut utiliser les commandes suivantes sur srv-core :
+    (root) /usr/bin/systemctl restart helios-suivi.service, /usr/bin/systemctl status helios-suivi.service, /usr/bin/systemctl start helios-suivi-publish.service, /usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager, /usr/bin/journalctl -u helios-suivi-publish.service -n 100 --no-pager
+[rc=0]
+
+### sudo -l -U lea /usr/bin/systemctl restart sshd
+[rc=1]
+
+### sudo -l -U lea /usr/bin/systemctl restart helios-suivi.service
+/usr/bin/systemctl restart helios-suivi.service
+[rc=0]
+
+### sudo -l -U lea /usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager
+/usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager
+[rc=0]
+
+### sudo -l -U lea /usr/bin/journalctl --vacuum-time=1s
+[rc=1]
+
+### sudo -l -U lea /usr/bin/journalctl -u helios-suivi.service -n 100 --no-pager --vacuum-time=1s
+[rc=1]
+
+--- essai reel en lea ---
+
+### su - lea -c "echo 'Helios-Suivi-2026' | sudo -S -p '' /usr/bin/journalctl -u helios-suivi-publish.service -n 100 --no-pager"
+
+Nous espérons que vous avez reçu de votre administrateur système local
+les consignes traditionnelles. Généralement, elles se concentrent sur ces trois éléments :
+
+    #1) Respectez la vie privée des autres.
+    #2) Réfléchissez avant d'utiliser le clavier.
+    #3) De grands pouvoirs confèrent de grandes responsabilités.
+
+Pour des raisons de sécurité, le mot de passe que vous tapez ne sera pas visible.
+
+-- No entries --
+[rc=0]
+
+### su - lea -c "echo 'Helios-Suivi-2026' | sudo -S -p '' /usr/bin/systemctl restart sshd"
+Désolé, l'utilisateur lea n'est pas autorisé à exécuter « /usr/bin/systemctl restart sshd » en tant que root sur srv-core.
+[rc=1]
+
+################ E7 ################
+
+### sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication|allowgroups) '
+port 2242
+permitrootlogin no
+passwordauthentication no
+allowgroups ssh-admins
+[rc=0]
+
+### journalctl -u sshd --since '-15min' --no-pager | grep -i lea
+nov. 06 12:48:39 srv-core sshd-session[20080]: User lea from 192.168.56.1 not allowed because none of user's groups are listed in AllowGroups
+nov. 06 12:48:39 srv-core sshd-session[20080]: Connection closed by invalid user lea 192.168.56.1 port 56023 [preauth]
+[rc=0]
+
+### systemctl is-active helios-watch-auth.timer
+active
+[rc=0]
+
+### systemctl list-timers helios-watch-auth.timer --no-pager
+NEXT                        LEFT     LAST                        PASSED       UNIT                    ACTIVATES
+Fri 2026-11-06 12:52:00 CET 37s left Fri 2026-11-06 12:50:04 CET 1min 18s ago helios-watch-auth.timer helios-watch-auth.service
+
+1 timers listed.
+Pass --all to see loaded but inactive timers, too.
+[rc=0]
+
+### grep -rE '^\s*Storage' /etc/systemd/journald.conf /etc/systemd/journald.conf.d/ 2>/dev/null
+/etc/systemd/journald.conf.d/50-helios.conf:Storage=persistent
+[rc=0]
+
+### ls -ld /var/log/journal; journalctl --disk-usage
+drwxr-sr-x+ 3 root systemd-journal 46  4 nov.  18:49 /var/log/journal
+Archived and active journals take up 55.9M in the file system.
+[rc=0]
+
+### journalctl --list-boots --no-pager | tail -3
+IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY
+ -1 006930a7d0734bf089fe2ab03b8fdaa2 Wed 2026-11-04 18:26:04 CET Wed 2026-11-04 18:50:50 CET
+  0 bab8b16e80f4488c889c0027fcbc118d Wed 2026-11-04 18:50:56 CET Fri 2026-11-06 12:51:22 CET
+[rc=0]
+
+### systemctl is-active firewalld
+active
+[rc=0]
+
+### getenforce
+Enforcing
+[rc=0]
+===== fin 2026-11-06 12:51:22 =====
