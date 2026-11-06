@@ -1,0 +1,88 @@
+===== E3 srv-core - 2026-11-06 12:41:04 =====
+
+### ls -l /usr/local/sbin/helios-suivi-publish.sh
+-rwxr-xr-x. 1 root root 1432  6 nov.  12:41 /usr/local/sbin/helios-suivi-publish.sh
+[rc=0]
+
+### getfacl -p /var/lib/helios
+# file: /var/lib/helios
+# owner: helios
+# group: helios
+user::rwx
+user:helios-suivi:--x
+group::r-x
+mask::r-x
+other::---
+
+[rc=0]
+
+### tail -n 1 /var/lib/helios/telemetry.csv
+2026-11-06T12:40:59+01:00,1.11,1356728
+[rc=0]
+
+--- code 0 : lance en helios-suivi ---
+
+### runuser -u helios-suivi -- /usr/local/sbin/helios-suivi-publish.sh
+[rc=0]
+
+### ls -l /srv/helios/suivi/www/etat.json
+-rw-rw----+ 1 helios-suivi suivi 184  6 nov.  12:41 /srv/helios/suivi/www/etat.json
+[rc=0]
+
+### getfacl -p /srv/helios/suivi/www/etat.json
+# file: /srv/helios/suivi/www/etat.json
+# owner: helios-suivi
+# group: suivi
+user::rw-
+user:helios-suivi:rwx	#effective:rw-
+group::rwx	#effective:rw-
+mask::rw-
+other::---
+
+[rc=0]
+
+### python3 -m json.tool /srv/helios/suivi/www/etat.json
+{
+    "genere": "2026-11-06T12:41:04+01:00",
+    "hote": "srv-core",
+    "derniere_mesure": "2026-11-06T12:40:59+01:00",
+    "charge_1min": 1.11,
+    "mem_dispo_ko": 1356728,
+    "mesures": 179
+}
+[rc=0]
+
+--- code 2 : une autre instance tient le verrou ---
+
+### runuser -u helios-suivi -- /usr/local/sbin/helios-suivi-publish.sh
+[rc=2]
+
+--- code 3 : lance par nadia (www non inscriptible / telemetrie illisible) ---
+
+### runuser -u nadia -- /usr/local/sbin/helios-suivi-publish.sh
+[rc=3]
+
+--- ecriture atomique : pas de fichier temporaire qui traine ---
+
+### ls -la /srv/helios/suivi/www
+total 8
+drwxrws---+ 2 root         suivi  41  6 nov.  12:41 .
+drwxr-x---+ 3 root         suivi  17  6 nov.  12:29 ..
+-rw-rw----+ 1 helios-suivi suivi 184  6 nov.  12:41 etat.json
+-rw-rw----+ 1 lea          suivi  80  6 nov.  12:29 index.html
+[rc=0]
+
+### runuser -u zabbix -- stat -c '%n %s %y' /srv/helios/suivi/www/etat.json
+/srv/helios/suivi/www/etat.json 184 2026-11-06 12:41:04.861235865 +0100
+[rc=0]
+
+### journalctl -t helios-suivi-publish -n 10 --no-pager
+nov. 06 12:41:04 srv-core helios-suivi-publish[19661]: etat.json publie (179 mesures)
+nov. 06 12:41:06 srv-core helios-suivi-publish[19676]: une autre instance tourne deja
+nov. 06 12:41:10 srv-core helios-suivi-publish[19682]: telemetrie illisible : /var/lib/helios/telemetry.csv
+[rc=0]
+
+### ausearch -m AVC -ts recent 2>&1 | tail -3
+<no matches>
+[rc=0]
+===== fin 2026-11-06 12:41:10 =====

@@ -2,8 +2,8 @@
 
 Amziane Tarek (MTP). srv-core = 192.168.56.101 (SSH port 2242, compte admin_trake puis `sudo -i`).
 
-**Rendu partiel.** Faute de temps je n'ai fait que : les prérequis, E8.1 (agent Zabbix), E1 et E2.
-E3 à E10 ne sont pas commencés, je le dis clairement dans le tableau. Je n'ai rien mis de faux.
+**Rendu partiel.** Faute de temps je n'ai fait que : les prérequis, E8.1 (agent Zabbix), E1, E2 et E3 (sans unit).
+E4 à E10 ne sont pas commencés, je le dis clairement dans le tableau. Je n'ai rien mis de faux.
 
 Tout a été lancé en une fois avec le script `configs/projet-e8-e1-e2.sh` (en root), le 06/11/2026 entre 12:27:19 et 12:29:31 (heure du serveur).
 La sortie complète copiée du terminal est dans `preuves/sortie-projet.txt`. Les captures sont dans `preuves/Captures_PROJET.pdf` (9 captures : ce sont les vraies sorties du terminal srv-core, mises en image depuis `sortie-projet.txt`, pas des copies d'écran de fenêtre).
@@ -37,7 +37,10 @@ Instantanés : il n'y a pas de `03-fin-TP3` chez moi (j'ai `00-socle-propre`, `0
 | E2.3 | OK — cap. 9 | `runuser -u zabbix -- ls www` / `-- stat .../index.html` | ls : `Permission non accordée` rc=2 ; stat : `lea:suivi 660` rc=0 (testé sur index.html car etat.json n'existe pas encore, E3 pas fait) |
 | E2.4 | OK — cap. 8 | fichier créé par lea **avec umask 077** + `ls -l` + `getfacl` | `-rw-rw----+ 1 lea suivi` ; `user:helios-suivi:rwx #effective:rw-` ; `other::---` ; helios-suivi `cat` rc=0 ; nadia `cat` → `Permission non accordée` rc=1 |
 | E2.5 | OK | `su - lea -c "... > www/index.html"` | propriétaire `lea`, contenu : `<h1>Portail de suivi des tournees Helios</h1><p>Page deposee par Lea Fabre.</p>` |
-| E3 | **Non réalisé** | — | script de publication pas écrit |
+| E3.1-3.3 | OK — `preuves/sortie-e3.txt` | `runuser -u helios-suivi -- helios-suivi-publish.sh` ; `python3 -m json.tool` ; `journalctl -t helios-suivi-publish` | rc=0, JSON valide : `"genere": "2026-11-06T12:41:04+01:00"`, `"hote": "srv-core"`, `"derniere_mesure": "2026-11-06T12:40:59+01:00"`, `"charge_1min": 1.11`, `"mem_dispo_ko": 1356728`, `"mesures": 179` ; journal : `etat.json publie (179 mesures)` |
+| E3.2 | OK (0, 2, 3 provoqués ; 1 pas provoqué) | verrou tenu par `flock -n script sleep 5` puis 2e lancement ; lancement par nadia | rc=2 + journal `une autre instance tourne deja` ; rc=3 + journal `telemetrie illisible : /var/lib/helios/telemetry.csv` |
+| E3.3 | OK | `ls -la www` après publication | seulement `etat.json` et `index.html`, pas de `.etat.json.XXXXXX` qui traîne (mktemp dans www puis `mv`) |
+| E3.4 | **Partiel** | — | marche lancé en helios-suivi, mais pas testé dans une unit (E4 pas fait) |
 | E4 | **Non réalisé** | — | aucune unit créée (helios-suivi.service, publish .service/.timer) |
 | E5 | **Non réalisé** | — | pas de `/etc/sudoers.d/92-helios-suivi` |
 | E6 | **Non réalisé** | — | 8080 pas ouvert (normal, rien n'écoute) |
@@ -74,7 +77,16 @@ Non réalisée (le portail n'existe pas encore). sysstat collecte quand même de
 ## 5. Limites connues
 
 - uid de lea = 5105 et pas 5104 (conflit avec sysops du TP3, voir plus haut). Avec plus de temps : en parler au formateur avant de toucher à sysops.
-- E3, E4, E5, E6, E8.3-8.5, E9, E10 pas faits, E7 seulement en partie. Je n'ai pas réussi à gérer le temps sur les deux jours.
+- E3.4 pas testé sous systemd (pas d'unit). Le code 1 (ligne invalide) existe dans le script mais je ne l'ai pas provoqué.
+- E4, E5, E6, E8.3-8.5, E9, E10 pas faits, E7 seulement en partie. Je n'ai pas réussi à gérer le temps sur les deux jours.
 - L'ACL par défaut donne aussi `rwx` à helios-suivi sur les nouveaux fichiers (`#effective:rw-` à cause du masque), ça suffit pour E2.4.
 - Pas de reboot fait après les modifs (tout est fait avec des commandes persistantes : useradd, chage, setfacl, systemctl enable, mais pas re-vérifié après un boot).
-- Avec une journée de plus : E3 (script publish avec flock + mktemp dans www + mv pour l'atomicité), E4 (units + `systemd-analyze security`), E5, E6 (`--zone=internal --add-port=8080/tcp` runtime + permanent), puis E8.3 et E9.
+- Avec une journée de plus : E4 (units + `systemd-analyze security`), E5, E6 (`--zone=internal --add-port=8080/tcp` runtime + permanent), puis E8.3 et E9.
+
+## 6. E3 — notes (fait à la fin, 12:41)
+
+- Script : `configs/helios-suivi-publish.sh`, installé par `configs/projet-e3.sh` (0755 root:root dans /usr/local/sbin). Sortie : `preuves/sortie-e3.txt`.
+- Les 5 règles : `set -Eeuo pipefail` ; verrou `flock -n` sur le script lui-même ouvert en lecture (`exec 9<"$0"`), donc pas besoin d'écrire un fichier de verrou (ça passera avec ProtectSystem=strict) ; `trap cleanup EXIT` qui supprime le fichier temporaire ; `logger -t helios-suivi-publish` ; codes 0/1/2/3.
+- Atomicité : `mktemp` dans www (même système de fichiers) puis `mv` = rename, un lecteur voit l'ancien ou le nouveau fichier, jamais la moitié. `chmod 0660` avant le mv sinon mktemp crée en 0600 et le masque ACL tombe à `---` (lea ne pourrait plus lire).
+- Problème rencontré : `/var/lib/helios` est en 750 helios:helios (TP1), helios-suivi ne pouvait pas lire telemetry.csv. J'ai **ajouté** une ACL `u:helios-suivi:--x` sur `/var/lib/helios` (rien retiré, le fichier lui-même est déjà 644). `getfacl` dans `sortie-e3.txt`.
+- zabbix peut faire `stat` sur etat.json (`/srv/helios/suivi/www/etat.json 184 2026-11-06 12:41:04`), donc E2.3 est vérifié aussi sur le vrai fichier. Pas d'AVC.
