@@ -6,7 +6,7 @@ Amziane Tarek (MTP). srv-core = 192.168.56.101 (SSH port 2242, compte admin_trak
 E4, E6, E8.3-8.5, E9, E10 ne sont pas commencés, je le dis clairement dans le tableau. Je n'ai rien mis de faux.
 
 Tout a été lancé en une fois avec le script `configs/projet-e8-e1-e2.sh` (en root), le 06/11/2026 entre 12:27:19 et 12:29:31 (heure du serveur).
-La sortie complète copiée du terminal est dans `preuves/sortie-projet.txt`. Les captures sont dans `preuves/Captures_PROJET.pdf` (13 captures, 10 à 13 pour E3 : ce sont les vraies sorties du terminal srv-core, mises en image depuis `sortie-projet.txt`, pas des copies d'écran de fenêtre).
+La sortie complète copiée du terminal est dans `preuves/sortie-projet.txt`. Les captures sont dans `preuves/Captures_PROJET.pdf` (18 captures, 10 à 13 pour E3, 14 à 16 pour E5, 17-18 pour E7 : ce sont les vraies sorties du terminal srv-core, mises en image depuis `sortie-projet.txt`, pas des copies d'écran de fenêtre).
 
 ## 0. Prérequis
 
