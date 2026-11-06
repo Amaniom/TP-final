@@ -1,0 +1,1 @@
+Non realise : E6 (pare-feu 8080) pas commence. Pas de sortie firewall-cmd --zone=internal --list-all pour le projet.
